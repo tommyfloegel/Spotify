@@ -1,0 +1,83 @@
+# After uploading my personal data to BigQuery, first step is to clean the data. I want to create a new table with distinct artist names, total msPlayed, 
+and excluding Artists containing "Podcast"
+
+SELECT artistName, 
+SUM(msPlayed) AS Total_msPlayed
+FROM `calm-sylph-396720.spotify.spotify_listening` 
+WHERE artistName NOT LIKE "%Podcast%"
+GROUP BY artistName
+
+# Exported table as 'spotify_listening_totals"
+
+ALTER TABLE `spotify.spotify_listening_totals` 
+ADD COLUMN Seconds_Played 
+
+## Added Column Seconds_Played
+
+UPDATE `spotify.spotify_listening_totals`
+SET Seconds_Played = Total_msPlayed/1000
+WHERE Total_msPlayed > 0
+
+# Ordered the table by most listens
+
+SELECT *
+FROM`spotify.spotify_listening_totals`
+WHERE Total_msPlayed > 0
+ORDER BY Seconds_Played DESC
+
+## I saw one podcast slipped through the cracks, so going to remove that entry
+
+SELECT *
+FROM`spotify.spotify_listening_totals`
+WHERE Total_msPlayed > 0
+AND artistName != "This Past Weekend"
+ORDER BY Seconds_Played DESC
+
+## Upon further inspection, I decided I'd rather work with minutes so added a final "Minutes_Played" column
+
+ALTER TABLE `calm-sylph-396720.spotify.spotify_listening_totals` 
+ADD COLUMN Minutes_Played FLOAT64
+
+## Added data in the new column
+
+UPDATE `spotify.spotify_listening_totals`
+SET Minutes_Played = Seconds_Played/60
+WHERE Total_msPlayed > 0
+
+## The new column had long decimal tails, so I rounded those to two places
+### I also will limit to the top 25 artists
+
+SELECT artistName,
+ROUND(Minutes_Played,2)
+FROM `spotify.spotify_listening_totals`
+WHERE Total_msPlayed > 0
+AND artistName != "This Past Weekend"
+ORDER BY Seconds_Played DESC
+LIMIT 25
+
+# Export as 'Top_25' and begin the Genre Mathching process. Add genres in. Tedious process as this must be done manually, but will provide better insights into listening trends
+## To simplify the process, I exported the Top_25 table to a spreadsheet to fill in the genres. This could also be done with INSERT functions in SQL,
+but for time purposes I will create an ArtistName/Genre Table to join the Top_25 Table. 
+### Created table Genre with data stated above, and joined the tables for my Final Table
+
+SELECT 
+  artistName,
+  Minutes_Played,
+  Genre
+FROM `spotify.Top_25`
+JOIN `spotify.Genre`
+ON (
+artistName = Artist_Name
+)
+
+# Export final Table with Artist Name, Minutes Played, and Genre for visualization!
+
+
+
+
+
+
+
+
+
+
